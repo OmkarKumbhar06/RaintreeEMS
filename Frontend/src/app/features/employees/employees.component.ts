@@ -80,35 +80,74 @@ import { Employee, Department } from '../../shared/models/models';
                   readonly>
               </div>
             }
+
             <div class="form-group">
               <label>Employee Name <span class="req">*</span></label>
-              <input class="form-control" [(ngModel)]="form.employeeName" placeholder="Full name">
+              <input class="form-control" [class.is-invalid]="fieldErrors.employeeName"
+                     [(ngModel)]="form.employeeName" placeholder="Full name"
+                     (blur)="validateField('employeeName')">
+              @if (fieldErrors.employeeName) {
+                <div class="field-error"><i class="fas fa-circle-exclamation"></i> {{ fieldErrors.employeeName }}</div>
+              }
             </div>
+
             <div class="form-group">
               <label>Department <span class="req">*</span></label>
-              <select class="form-control" [(ngModel)]="form.departmentId">
+              <select class="form-control" [class.is-invalid]="fieldErrors.departmentId"
+                      [(ngModel)]="form.departmentId"
+                      (blur)="validateField('departmentId')"
+                      (change)="validateField('departmentId')">
                 <option [value]="0">— Select Department —</option>
                 @for (d of departments; track d.departmentId) {
                   <option [value]="d.departmentId">{{ d.departmentName }}</option>
                 }
               </select>
+              @if (fieldErrors.departmentId) {
+                <div class="field-error"><i class="fas fa-circle-exclamation"></i> {{ fieldErrors.departmentId }}</div>
+              }
             </div>
+
             <div class="form-group">
               <label>Designation <span class="req">*</span></label>
-              <input class="form-control" [(ngModel)]="form.designation" placeholder="e.g. Senior Developer">
+              <input class="form-control" [class.is-invalid]="fieldErrors.designation"
+                     [(ngModel)]="form.designation" placeholder="e.g. Senior Developer"
+                     (blur)="validateField('designation')">
+              @if (fieldErrors.designation) {
+                <div class="field-error"><i class="fas fa-circle-exclamation"></i> {{ fieldErrors.designation }}</div>
+              }
             </div>
+
             <div class="form-group">
               <label>Email <span class="req">*</span></label>
-              <input class="form-control" type="email" [(ngModel)]="form.email" placeholder="employee@company.com">
+              <input class="form-control" [class.is-invalid]="fieldErrors.email"
+                     type="email" [(ngModel)]="form.email" placeholder="employee@company.com"
+                     (blur)="validateField('email')">
+              @if (fieldErrors.email) {
+                <div class="field-error"><i class="fas fa-circle-exclamation"></i> {{ fieldErrors.email }}</div>
+              }
             </div>
+
             <div class="form-group">
               <label>Mobile No <span class="req">*</span></label>
-              <input class="form-control" [(ngModel)]="form.mobileNo" placeholder="10-digit mobile number">
+              <input class="form-control" [class.is-invalid]="fieldErrors.mobileNo"
+                     [(ngModel)]="form.mobileNo" placeholder="10-digit mobile number"
+                     maxlength="10" (blur)="validateField('mobileNo')">
+              @if (fieldErrors.mobileNo) {
+                <div class="field-error"><i class="fas fa-circle-exclamation"></i> {{ fieldErrors.mobileNo }}</div>
+              }
             </div>
+
             <div class="form-group">
               <label>Joining Date <span class="req">*</span></label>
-              <input class="form-control" type="date" [(ngModel)]="form.joiningDate">
+              <input class="form-control" [class.is-invalid]="fieldErrors.joiningDate"
+                     type="date" [(ngModel)]="form.joiningDate"
+                     [max]="todayStr" (blur)="validateField('joiningDate')"
+                     (change)="validateField('joiningDate')">
+              @if (fieldErrors.joiningDate) {
+                <div class="field-error"><i class="fas fa-circle-exclamation"></i> {{ fieldErrors.joiningDate }}</div>
+              }
             </div>
+
             <div class="form-group">
               <label>Status <span class="req">*</span></label>
               <select class="form-control" [(ngModel)]="form.status">
@@ -128,7 +167,19 @@ import { Employee, Department } from '../../shared/models/models';
       </div>
     }
   `,
-  styles: [`.toolbar{display:flex;justify-content:flex-end;} .req{color:var(--danger);}`]
+  styles: [`
+    .toolbar{display:flex;justify-content:flex-end;}
+    .req{color:var(--danger);}
+    .form-control.is-invalid { border-color: var(--danger); }
+    .field-error {
+      color: var(--danger);
+      font-size: 12px;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+  `]
 })
 export class EmployeesComponent implements OnInit {
   private empSvc  = inject(EmployeeService);
@@ -140,6 +191,20 @@ export class EmployeesComponent implements OnInit {
   search = ''; showModal = false; isEdit = false; saving = false; errMsg = '';
   editId = 0;
   form: any = this.blank();
+
+  // Field-level validation error messages, with explicit keys (avoids
+  // TS4111 "comes from an index signature" errors with noPropertyAccessFromIndexSignature)
+  fieldErrors: {
+    employeeName?: string;
+    departmentId?: string;
+    designation?: string;
+    email?: string;
+    mobileNo?: string;
+    joiningDate?: string;
+  } = {};
+
+  // Used to cap the "Joining Date" input at today
+  todayStr = new Date().toISOString().substring(0, 10);
 
   blank() { return { employeeCode:'', employeeName:'', departmentId:0, designation:'', email:'', mobileNo:'', joiningDate:'', status:'Active' }; }
 
@@ -159,46 +224,156 @@ export class EmployeesComponent implements OnInit {
   }
   load() { this.empSvc.getAll().subscribe(e => this.employees = e); }
 
-  // openModal(e?: Employee) {
-  //   this.isEdit = !!e; this.errMsg = '';
-  //   if (e) {
-  //     this.form   = { ...e, joiningDate: e.joiningDate?.toString().substring(0, 10) ?? '' };
-  //     this.editId = e.employeeId;
-  //   } else {
-  //     this.form = this.blank(); this.editId = 0;
-  //   }
-  //   this.showModal = true;
-  // }
-
   openModal(e?: Employee) {
-  this.isEdit = !!e;
-  this.errMsg = '';
+    this.isEdit = !!e;
+    this.errMsg = '';
+    this.fieldErrors = {};
 
-  if (e) {
-    this.form = {
-      ...e,
-      joiningDate: e.joiningDate?.toString().substring(0, 10) ?? ''
-    };
-    this.editId = e.employeeId;
-  } else {
-    this.form = this.blank();
-    this.editId = 0;
+    if (e) {
+      this.form = {
+        ...e,
+        joiningDate: e.joiningDate?.toString().substring(0, 10) ?? ''
+      };
+      this.editId = e.employeeId;
+    } else {
+      this.form = this.blank();
+      this.editId = 0;
+    }
+
+    this.showModal = true;
   }
 
-  this.showModal = true;
-}
-  closeModal() { this.showModal = false; }
+  closeModal() {
+    this.showModal = false;
+    this.fieldErrors = {};
+    this.errMsg = '';
+    this.load();
+  }
+
+  /**
+   * Validates a single field on blur/change and updates fieldErrors.
+   * Returns true if the field is valid.
+   */
+  validateField(field: keyof typeof this.fieldErrors): boolean {
+    const f = this.form;
+    let message = '';
+
+    switch (field) {
+      case 'employeeName':
+        if (!f.employeeName?.trim()) {
+          message = 'Employee name is required.';
+        } else if (f.employeeName.trim().length < 2) {
+          message = 'Employee name must be at least 2 characters.';
+        } else if (!/^[A-Za-z\s.'-]+$/.test(f.employeeName.trim())) {
+          message = 'Employee name can only contain letters and spaces.';
+        }
+        break;
+
+      case 'departmentId':
+        if (!f.departmentId || +f.departmentId === 0) {
+          message = 'Please select a department.';
+        }
+        break;
+
+      case 'designation':
+        if (!f.designation?.trim()) {
+          message = 'Designation is required.';
+        } else if (f.designation.trim().length < 2) {
+          message = 'Designation must be at least 2 characters.';
+        }
+        break;
+
+      case 'email':
+        if (!f.email?.trim()) {
+          message = 'Email is required.';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.email.trim())) {
+          message = 'Enter a valid email address.';
+        }
+        break;
+
+      case 'mobileNo':
+        if (!f.mobileNo?.trim()) {
+          message = 'Mobile number is required.';
+        } else if (!/^[6-9]\d{9}$/.test(f.mobileNo.trim())) {
+          message = 'Enter a valid 10-digit mobile number.';
+        }
+        break;
+
+      case 'joiningDate':
+        if (!f.joiningDate) {
+          message = 'Joining date is required.';
+        } else if (f.joiningDate > this.todayStr) {
+          message = 'Joining date cannot be in the future.';
+        }
+        break;
+    }
+
+    if (message) {
+      this.fieldErrors[field] = message;
+      return false;
+    } else {
+      delete this.fieldErrors[field];
+      return true;
+    }
+  }
+
+  /** Validates every field at once (used on Save). Returns true if the whole form is valid. */
+  validateAll(): boolean {
+    const fields: (keyof typeof this.fieldErrors)[] =
+      ['employeeName', 'departmentId', 'designation', 'email', 'mobileNo', 'joiningDate'];
+    let valid = true;
+    for (const field of fields) {
+      if (!this.validateField(field)) valid = false;
+    }
+    return valid;
+  }
 
   save() {
+    this.errMsg = '';
+
+    if (!this.validateAll()) {
+      this.errMsg = 'Please fix the highlighted fields before saving.';
+      return;
+    }
+
     const f = this.form;
-    if (!f.employeeName || !f.departmentId || !f.designation || !f.email || !f.mobileNo || !f.joiningDate)
-      { this.errMsg = 'All fields marked * are required.'; return; }
-    if (+f.departmentId === 0) { this.errMsg = 'Please select a department.'; return; }
     this.saving = true;
     const obs = (this.isEdit ? this.empSvc.update(this.editId, f) : this.empSvc.create(f)) as import("rxjs").Observable<import("../../shared/models/models").ApiResponse<any>>;
     obs.subscribe({
-      next: r  => { this.saving = false; if (r.success) { this.closeModal(); this.load(); } else this.errMsg = r.message; },
-      error: () => { this.saving = false; this.errMsg = 'Server error. Please try again.'; }
+      next: r => {
+        this.saving = false;
+        if (r.success) {
+          this.closeModal();
+          this.load();
+        } else {
+          // 2xx response but success:false (some endpoints may do this)
+          this.errMsg = r.message || 'Something went wrong. Please try again.';
+        }
+      },
+      error: (err) => {
+        this.saving = false;
+
+        // The backend's BadRequest(result) / Conflict(result) puts the
+        // ApiResponse JSON body in err.error - read its "message" field.
+        const backendMessage = err?.error?.message;
+
+        if (backendMessage) {
+          // e.g. "Employee code 'EMP010' already exists"
+          this.errMsg = backendMessage;
+        } else if (err.status === 0) {
+          this.errMsg = 'Cannot connect to server. Please check your connection.';
+        } else if (err.status === 401) {
+          this.errMsg = 'Your session has expired. Please log in again.';
+        } else if (err.status === 403) {
+          this.errMsg = 'You do not have permission to perform this action.';
+        } else if (err.status === 409) {
+          this.errMsg = 'This record already exists.';
+        } else if (err.status === 404) {
+          this.errMsg = 'Record not found. It may have been deleted.';
+        } else {
+          this.errMsg = 'Server error. Please try again.';
+        }
+      }
     });
   }
 
